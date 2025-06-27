@@ -4,6 +4,12 @@
 
 A starter template or playground for creating **Vincent Tools** and **Vincent Policies** that execute on Lit Actions - immutable JavaScript programs that run on a decentralized Lit Protocol network.
 
+## ⚠️ (experiment) Very Quick Start
+
+```bash
+npx @lit-protocol/vincent-scaffold-sdk
+```
+
 ## Quick Start
 
 ### Prerequisites
@@ -27,6 +33,8 @@ A starter template or playground for creating **Vincent Tools** and **Vincent Po
    ```bash
    npm install
    ```
+
+````
 
 4. **Build tools and policies**
 
@@ -140,3 +148,4 @@ npm run vincent:hardreset         # Reset all state and rebuild
 - [Claude Code Guidelines](./CLAUDE.md) - Project-specific development patterns
 - [ERC-20 Implementation Example](./erc-20-feature-request.md) - Reference for new tool development
 - [Official Vincent Documentation](https://docs.heyvincent.ai/) - Complete Vincent framework documentation
+````
