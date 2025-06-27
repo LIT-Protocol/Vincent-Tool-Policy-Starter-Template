@@ -10,6 +10,8 @@ A starter template or playground for creating **Vincent Tools** and **Vincent Po
 npx @lit-protocol/vincent-scaffold-sdk
 ```
 
+![ER20 E2E](e2e-erc20.png)
+
 ## Quick Start
 
 ### Prerequisites
