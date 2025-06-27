@@ -55,11 +55,15 @@ npx @lit-protocol/vincent-scaffold-sdk
 
    ![Native send](e2e-native-send.png)
 
+   > **Tools tested**: [native-send](./vincent-packages/tools/native-send/README.md) | **Policy**: [send-counter-limit](./vincent-packages/policies/send-counter-limit/README.md)
+
    ```bash
    npm run vincent:e2e:erc20
    ```
 
    ![ERC20 E2E](e2e-erc20.png)
+
+   > **Tools tested**: [erc20-transfer](./vincent-packages/tools/erc20-transfer/README.md) | **Policy**: [send-counter-limit](./vincent-packages/policies/send-counter-limit/README.md)
 
 ## Development Workflow
 
