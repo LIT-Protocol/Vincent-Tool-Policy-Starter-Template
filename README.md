@@ -9,13 +9,14 @@ A starter template or playground for creating **Vincent Tools** and **Vincent Po
 # Prerequisites
 
 - **ETH Private key**
-
+  
   Used to fund all other private keys in tests
 
   - Minimum requirement: 0.13 LIT tokens
   - Get LIT Test tokens: [Chronicle Yellowstone Faucet](https://chronicle-yellowstone-faucet.getlit.dev/)
 
 - **Pinata JWT Key**
+
   Required to pin tools and policies to IPFS
 
   - Get API key: [Pinata Developers](https://app.pinata.cloud/developers/api-keys)
