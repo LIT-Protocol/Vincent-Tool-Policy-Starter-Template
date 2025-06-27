@@ -4,6 +4,20 @@
 
 A starter template or playground for creating **Vincent Tools** and **Vincent Policies** that execute on Lit Actions - immutable JavaScript programs that run on a decentralized Lit Protocol network.
 
+# Prerequisites
+
+- **ETH Private key**
+
+  Used to fund all other private keys in tests
+
+  - Minimum requirement: 0.13 LIT tokens
+  - Get LIT Test tokens: [Chronicle Yellowstone Faucet](https://chronicle-yellowstone-faucet.getlit.dev/)
+
+- **Pinata JWT Key**
+  Required to pin tools and policies to IPFS
+
+  - Get API key: [Pinata Developers](https://app.pinata.cloud/developers/api-keys)
+
 ## ⚠️ (experiment) Very Quick Start
 
 ```bash
@@ -12,21 +26,14 @@ npx @lit-protocol/vincent-scaffold-sdk
 
 ## Quick Start
 
-### Prerequisites
-
 1. Clone this repo
 
 2. **Set up environment variables**
 
    Create a `.env` file with the following variables:
 
-   - `TEST_FUNDER_PRIVATE_KEY` - Used to fund all other private keys in tests
-
-     - **Minimum requirement**: 0.13 LIT tokens
-     - **Get LIT tokens**: [Chronicle Yellowstone Faucet](https://chronicle-yellowstone-faucet.getlit.dev/)
-
-   - `PINATA_JWT` - Required to pin tools and policies to IPFS
-     - **Get API key**: [Pinata Developers](https://app.pinata.cloud/developers/api-keys)
+   - `TEST_FUNDER_PRIVATE_KEY`
+   - `PINATA_JWT`
 
 3. **Install dependencies**
 
