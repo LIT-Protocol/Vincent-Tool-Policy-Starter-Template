@@ -178,6 +178,9 @@ import { bundledVincentTool as erc20TransferTool } from "../../vincent-packages/
     "💡 Testing on Base network - each ERC-20 transfer costs approximately 0.0000001 ETH in gas fees"
   );
 
+  // Array to collect transaction hashes from successful executions
+  const transactionHashes: string[] = [];
+
   const TEST_TOOL_PARAMS = {
     to: accounts.delegatee.ethersWallet.address, // Transfer to self for testing
     amount: "0.000001",
@@ -225,6 +228,11 @@ import { bundledVincentTool as erc20TransferTool } from "../../vincent-packages/
     );
   }
 
+  // Collect transaction hash if successful
+  if (executeRes1.success && executeRes1.result?.txHash) {
+    transactionHashes.push(executeRes1.result.txHash);
+  }
+
   console.log(
     "(✅ EXECUTE-TEST-1) First ERC-20 transfer completed successfully"
   );
@@ -257,6 +265,11 @@ import { bundledVincentTool as erc20TransferTool } from "../../vincent-packages/
     );
   }
 
+  // Collect transaction hash if successful
+  if (executeRes2.success && executeRes2.result?.txHash) {
+    transactionHashes.push(executeRes2.result.txHash);
+  }
+
   console.log(
     "(✅ EXECUTE-TEST-2) Second ERC-20 transfer completed successfully"
   );
@@ -286,6 +299,10 @@ import { bundledVincentTool as erc20TransferTool } from "../../vincent-packages/
     console.log("(EXECUTE-RES[3]): ", executeRes3);
 
     if (executeRes3.success) {
+      // Collect hash if unexpectedly successful
+      if (executeRes3.result?.txHash) {
+        transactionHashes.push(executeRes3.result.txHash);
+      }
       throw new Error(
         "❌ (EXECUTE-TEST-3) CRITICAL: Third ERC-20 execution should have been blocked by policy but succeeded!"
       );
@@ -306,6 +323,24 @@ import { bundledVincentTool as erc20TransferTool } from "../../vincent-packages/
     );
     console.log("🎉 (PRECHECK-TEST-3) ERC-20 POLICY ENFORCEMENT WORKING!");
   }
+
+  // Print all collected transaction hashes
+  console.log("\n" + "=".repeat(50));
+  console.log("📋 SUMMARY: COLLECTED TRANSACTION HASHES");
+  console.log("=".repeat(50));
+
+  if (transactionHashes.length > 0) {
+    transactionHashes.forEach((hash, index) => {
+      console.log(`${index + 1}. ${hash}`);
+    });
+    console.log(
+      `\n✅ Total successful ERC-20 transactions: ${transactionHashes.length}`
+    );
+  } else {
+    console.log("❌ No transaction hashes collected");
+  }
+
+  console.log("=".repeat(50));
 
   process.exit();
 })();

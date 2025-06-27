@@ -4,15 +4,11 @@
   "description": "Vincent project with tools and policies",
   "private": true,
   "scripts": {
-    "vincent:build": "dotenv -e .env -- sh -c 'for dir in vincent-packages/policies/*/; do [ -d \"$dir\" ] && echo \"Building policy: $(basename \"$dir\")\" && cd \"$dir\" && npm install && npm run build && cd - > /dev/null; done && for dir in vincent-packages/tools/*/; do [ -d \"$dir\" ] && echo \"Building tool: $(basename \"$dir\")\" && cd \"$dir\" && npm install && npm run build && cd - > /dev/null; done'",
-    "vincent:hardreset": "find vincent-packages -type d \\( -name 'dist' -o -name 'node_modules' \\) -exec rm -rf {} + 2>/dev/null || true && find vincent-packages -name 'package-lock.json' -delete && rm -rf node_modules package-lock.json .e2e-state.json",
+    "vincent:hardreset": "node vincent-scripts/hardReset.js",
+    "vincent:build": "node vincent-scripts/buildPackages.js",
+    "vincent:e2e:reset": "node vincent-scripts/resetE2E.js",
     "vincent:e2e": "dotenv -e .env -- tsx vincent-e2e/src/e2e.ts",
-    "vincent:e2e:erc20": "dotenv -e .env -- tsx vincent-e2e/src/e2e-erc20.ts",
-    "vincent:e2e:reset": "rm -f .e2e-state.json",
-    "vincent:forge:check": "sh -c 'if command -v forge >/dev/null 2>&1; then echo \"✅ Foundry is available\"; else echo \"❌ Foundry (forge) is not installed. Install it from https://getfoundry.sh/\"; exit 1; fi'",
-    "vincent:forge:init": "dotenv -e .env -- sh -c 'npm run vincent:forge:check && forge init ./vincent-policy-contracts/counter && cd ./vincent-policy-contracts/counter && forge build && forge script script/Counter.s.sol --rpc-url https://yellowstone-rpc.litprotocol.com --broadcast --private-key $TEST_FUNDER_PRIVATE_KEY' && npm run vincent:gen-abi",
-    "vincent:forge:deploy": "dotenv -e .env -- sh -c 'cd ./vincent-policy-contracts/counter && forge script script/Counter.s.sol --rpc-url https://yellowstone-rpc.litprotocol.com --broadcast --private-key $TEST_FUNDER_PRIVATE_KEY' && npm run vincent:gen-abi",
-    "vincent:gen-abi": "cd ./vincent-policy-contracts/counter && npx forge-to-signature Counter.s.sol 175188 ./generated -n counterSignatures"
+    "vincent:e2e:erc20": "dotenv -e .env -- tsx vincent-e2e/src/e2e-erc20.ts"
   },
   "devDependencies": {
     "tsx": "4.0.0",

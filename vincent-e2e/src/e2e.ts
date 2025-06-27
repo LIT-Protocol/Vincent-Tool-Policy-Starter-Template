@@ -186,6 +186,9 @@ import { bundledVincentTool as nativeSendTool } from "../../vincent-packages/too
    */
   console.log("🧪 Testing send limit policy");
 
+  // Array to collect transaction hashes from successful executions
+  const transactionHashes: string[] = [];
+
   const TEST_TOOL_PARAMS = {
     to: accounts.delegatee.ethersWallet.address,
     amount: "0.00001",
@@ -231,6 +234,11 @@ import { bundledVincentTool as nativeSendTool } from "../../vincent-packages/too
     );
   }
 
+  // Collect transaction hash if successful
+  if (executeRes1.success && executeRes1.result?.txHash) {
+    transactionHashes.push(executeRes1.result.txHash);
+  }
+
   console.log("(✅ EXECUTE-TEST-1) First send completed successfully");
 
   // ----------------------------------------
@@ -261,6 +269,11 @@ import { bundledVincentTool as nativeSendTool } from "../../vincent-packages/too
     );
   }
 
+  // Collect transaction hash if successful
+  if (executeRes2.success && executeRes2.result?.txHash) {
+    transactionHashes.push(executeRes2.result.txHash);
+  }
+
   console.log("(✅ EXECUTE-TEST-2) Second send completed successfully");
 
   // ----------------------------------------
@@ -286,6 +299,10 @@ import { bundledVincentTool as nativeSendTool } from "../../vincent-packages/too
     console.log("(EXECUTE-RES[3]): ", executeRes3);
 
     if (executeRes3.success) {
+      // Collect hash if unexpectedly successful
+      if (executeRes3.result?.txHash) {
+        transactionHashes.push(executeRes3.result.txHash);
+      }
       throw new Error(
         "❌ (EXECUTE-TEST-3) CRITICAL: Third execution should have been blocked by policy but succeeded!"
       );
@@ -306,6 +323,24 @@ import { bundledVincentTool as nativeSendTool } from "../../vincent-packages/too
     );
     console.log("🎉 (PRECHECK-TEST-3) POLICY ENFORCEMENT WORKING!");
   }
+
+  // Print all collected transaction hashes
+  console.log("\n" + "=".repeat(50));
+  console.log("📋 SUMMARY: COLLECTED TRANSACTION HASHES");
+  console.log("=".repeat(50));
+
+  if (transactionHashes.length > 0) {
+    transactionHashes.forEach((hash, index) => {
+      console.log(`${index + 1}. ${hash}`);
+    });
+    console.log(
+      `\n✅ Total successful transactions: ${transactionHashes.length}`
+    );
+  } else {
+    console.log("❌ No transaction hashes collected");
+  }
+
+  console.log("=".repeat(50));
 
   process.exit();
 })();

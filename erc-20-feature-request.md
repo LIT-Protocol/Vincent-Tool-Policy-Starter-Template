@@ -93,37 +93,7 @@ vincent-packages/tools/erc20-transfer/
 
 #### 3. Tool Parameters Schema (`src/lib/schemas.ts`)
 
-Extend the existing native-send schema pattern to include token contract address and network configuration:
-
-```typescript
-export const toolParamsSchema = z.object({
-  to: z.string().regex(/^0x[a-fA-F0-9]{40}$/, "Invalid Ethereum address"),
-  amount: z
-    .string()
-    .regex(/^\d*\.?\d+$/, "Invalid amount format")
-    .refine((val) => parseFloat(val) > 0, "Amount must be greater than 0"),
-  tokenAddress: z
-    .string()
-    .regex(/^0x[a-fA-F0-9]{40}$/, "Invalid token contract address"),
-  tokenDecimals: z
-    .number()
-    .int()
-    .min(0, "Token decimals must be non-negative")
-    .max(18, "Token decimals must not exceed 18")
-    .default(18), // Default to 18 decimals (most common for ERC-20 tokens)
-  rpcUrl: z
-    .string()
-    .url("Invalid RPC URL format")
-    .optional()
-    .default("https://yellowstone-rpc.litprotocol.com/"),
-  chainId: z
-    .number()
-    .int()
-    .positive("Chain ID must be a positive integer")
-    .optional()
-    .default(8453), // Default to Base mainnet
-});
-```
+Extend the existing native-send schema pattern to include token contract address and network configuration. It shuold allows user to enter amount, tokenAddress, tokenDecimals, rpcUrl and chainId
 
 **Additional Required Schemas:**
 
@@ -134,6 +104,7 @@ export const toolParamsSchema = z.object({
 #### 4. Tool Implementation (`src/lib/vincent-tool.ts`)
 
 **CRITICAL Import Patterns** (copy exactly):
+
 ```typescript
 import {
   createVincentTool,
@@ -146,6 +117,7 @@ import { laUtils } from "@lit-protocol/vincent-scaffold-sdk";
 ```
 
 **Policy Integration Pattern** (copy exactly):
+
 ```typescript
 const SendLimitPolicy = createVincentToolPolicy({
   toolParamsSchema,
@@ -158,6 +130,7 @@ const SendLimitPolicy = createVincentToolPolicy({
 ```
 
 **Tool Creation Pattern** (copy and modify):
+
 ```typescript
 export const vincentTool = createVincentTool({
   packageName: "@agentic-ai/vincent-tool-erc20-transfer" as const,
@@ -167,8 +140,15 @@ export const vincentTool = createVincentTool({
   precheckFailSchema,
   executeSuccessSchema,
   executeFailSchema,
-  precheck: async ({ toolParams }, { succeed, fail }) => { /* ... */ },
-  execute: async ({ toolParams }, { succeed, fail, delegation, policiesContext }) => { /* ... */ },
+  precheck: async ({ toolParams }, { succeed, fail }) => {
+    /* ... */
+  },
+  execute: async (
+    { toolParams },
+    { succeed, fail, delegation, policiesContext }
+  ) => {
+    /* ... */
+  },
 });
 ```
 
@@ -192,12 +172,12 @@ export const vincentTool = createVincentTool({
 - **Execute function**: Use `laUtils.transaction.handler.contractCall()` to call ERC-20 contract's `transfer` function
 - **Provider Configuration**: **CRITICAL** - The provider MUST be configurable by the tool consumer (e2e test), NOT hardcoded in the tool
   - **FORBIDDEN**: Do NOT hardcode any RPC endpoints in the tool implementation
-  - **FORBIDDEN**: Do NOT use `await laUtils.chain.getYellowstoneProvider()` - this locks the tool to one chain
   - **REQUIRED**: Tool parameters MUST include `rpcUrl` and `chainId` so the e2e test can specify which chain to use
   - **Pattern**: `const provider = new ethers.providers.JsonRpcProvider(toolParams.rpcUrl, toolParams.chainId)`
   - **Execute function pattern**:
     ```typescript
-    const { to, amount, tokenAddress, tokenDecimals, rpcUrl, chainId } = toolParams;
+    const { to, amount, tokenAddress, tokenDecimals, rpcUrl, chainId } =
+      toolParams;
     const provider = new ethers.providers.JsonRpcProvider(rpcUrl, chainId);
     ```
 - **Helper functions**: Create ERC-20 specific helpers in `src/lib/helpers/index.ts` for:
@@ -211,6 +191,33 @@ export const vincentTool = createVincentTool({
   - **Contract interaction helpers**: Create contract instances and handle common ERC-20 operations
 - **Available laUtils APIs**:
   - `laUtils.transaction.handler.contractCall()` - Execute contract calls
+  ```ts
+  // interface
+  export const contractCall = async ({
+  provider,
+  pkpPublicKey,
+  callerAddress,
+  abi,
+  contractAddress,
+  functionName,
+  args,
+  overrides = {},
+  chainId,
+  }: {
+  provider: any;
+  pkpPublicKey: string;
+  callerAddress: string;
+  abi: any[];
+  contractAddress: string;
+  functionName: string;
+  args: any[];
+  overrides?: {
+    value?: string | number | bigint;
+    gasLimit?: number;
+  };
+  chainId?: number;
+  }) => {
+  ```
   - `laUtils.helpers.toEthAddress()` - Address utilities
 - **Policy integration**: Maintain same pattern as `native-send` for `send-counter-limit` policy
 - **Policy commit pattern**: Use the helper function for cleaner code
@@ -241,77 +248,11 @@ export const vincentTool = createVincentTool({
 
 **CRITICAL**: These helper functions must be implemented to support the balance validation requirements:
 
-```typescript
-// Standard ERC-20 ABI - minimal required functions
-export const ERC20_ABI = [
-  "function transfer(address to, uint256 amount) returns (bool)",
-  "function balanceOf(address owner) view returns (uint256)",
-  "function decimals() view returns (uint8)",
-];
+- ERC20_ABI
+- check native balance
+- check erc20 balance
 
-// Check if sender has sufficient native tokens for gas fees
-export const checkNativeBalance = async (
-  provider: ethers.providers.JsonRpcProvider,
-  address: string,
-  estimatedGasCost: ethers.BigNumber
-): Promise<{ hasEnough: boolean; balance: ethers.BigNumber }> => {
-  const balance = await provider.getBalance(address);
-  return {
-    hasEnough: balance.gte(estimatedGasCost),
-    balance,
-  };
-};
-
-// Check if sender has sufficient ERC-20 tokens
-export const checkERC20Balance = async (
-  provider: ethers.providers.JsonRpcProvider,
-  tokenAddress: string,
-  ownerAddress: string,
-  requiredAmount: string,
-  decimals?: number
-): Promise<{ hasEnough: boolean; balance: ethers.BigNumber }> => {
-  const contract = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
-  const balance = await contract.balanceOf(ownerAddress);
-  const tokenDecimals = decimals || (await contract.decimals());
-  const parsedAmount = ethers.utils.parseUnits(requiredAmount, tokenDecimals);
-
-  return {
-    hasEnough: balance.gte(parsedAmount),
-    balance,
-  };
-};
-
-// Get token decimals for proper amount parsing
-export const getTokenDecimals = async (
-  provider: ethers.providers.JsonRpcProvider,
-  tokenAddress: string
-): Promise<number> => {
-  const contract = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
-  return await contract.decimals();
-};
-
-// Estimate gas for ERC-20 transfer
-export const estimateERC20TransferGas = async (
-  provider: ethers.providers.JsonRpcProvider,
-  toolParams: { tokenAddress: string; to: string; amount: string }
-): Promise<ethers.BigNumber> => {
-  const contract = new ethers.Contract(
-    toolParams.tokenAddress,
-    ERC20_ABI,
-    provider
-  );
-  const decimals = await getTokenDecimals(provider, toolParams.tokenAddress);
-  const amount = ethers.utils.parseUnits(toolParams.amount, decimals);
-
-  const gasEstimate = await contract.estimateGas.transfer(
-    toolParams.to,
-    amount
-  );
-  const gasPrice = await provider.getGasPrice();
-
-  return gasEstimate.mul(gasPrice);
-};
-```
+Add any necessary helper functions if required.
 
 #### 6. Technical Constraints
 
@@ -320,10 +261,12 @@ export const estimateERC20TransferGas = async (
   - Inside policy's `evaluate` hook
   - NOT available in `precheck` hooks
 - **Precheck Implementation Pattern**: Since `laUtils` is not available in precheck, use direct ethers.js for balance validations
+
   - Create provider directly: `new ethers.providers.JsonRpcProvider(toolParams.rpcEndpoint, toolParams.chainId)`
   - Use standard ethers contracts for ERC-20 interactions
   - Perform all validation logic before the execute phase
   - **Example precheck structure**:
+
     ```typescript
     precheck: async ({ toolParams, senderPkpEthAddress, success, fail }) => {
       try {
@@ -364,6 +307,7 @@ export const estimateERC20TransferGas = async (
       }
     };
     ```
+
 - **Network Configuration**: **CRITICAL** - Tool must be chain-agnostic and configurable by consumer
 
   - **FORBIDDEN**: Do NOT hardcode any RPC endpoints or chain IDs in the tool
@@ -390,7 +334,7 @@ export const estimateERC20TransferGas = async (
   export const laUtils = {
     transaction: {
       handler: {
-        contractCall,  // ← Use this for ERC-20 transfers
+        contractCall, // ← Use this for ERC-20 transfers
         nativeSend,
       },
       primitive: {
@@ -400,7 +344,7 @@ export const estimateERC20TransferGas = async (
       },
     },
     helpers: {
-      toEthAddress,  // ← Use this for PKP address conversion
+      toEthAddress, // ← Use this for PKP address conversion
     },
   };
   ```
@@ -437,6 +381,7 @@ import { bundledVincentTool as erc20TransferTool } from "../../vincent-packages/
 ```
 
 **E2E Test Tool Parameters Pattern**:
+
 ```typescript
 const TEST_TOOL_PARAMS = {
   to: accounts.delegatee.ethersWallet.address, // Transfer to self for testing
@@ -449,6 +394,7 @@ const TEST_TOOL_PARAMS = {
 ```
 
 **E2E Test Client Pattern**:
+
 ```typescript
 const erc20TransferToolClient = getVincentToolClient({
   bundledVincentTool: erc20TransferTool,
