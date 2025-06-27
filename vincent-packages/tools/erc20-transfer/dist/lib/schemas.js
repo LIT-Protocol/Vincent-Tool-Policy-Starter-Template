@@ -11,6 +11,12 @@ export const toolParamsSchema = z.object({
     tokenAddress: z
         .string()
         .regex(/^0x[a-fA-F0-9]{40}$/, "Invalid token contract address"),
+    tokenDecimals: z
+        .number()
+        .int()
+        .min(0, "Token decimals must be non-negative")
+        .max(18, "Token decimals must not exceed 18")
+        .default(18), // Default to 18 decimals (most common for ERC-20 tokens)
     rpcUrl: z
         .string()
         .url("Invalid RPC URL format")

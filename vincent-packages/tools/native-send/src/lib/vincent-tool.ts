@@ -42,12 +42,13 @@ export const vincentTool = createVincentTool({
       toolParams,
     });
 
-    const { to, amount } = toolParams;
+    const { to, amount, rpcUrl } = toolParams;
 
     // Basic validation without using ethers directly
     if (!to || !to.startsWith("0x") || to.length !== 42) {
       return fail({
-        error: "[@agentic-ai/vincent-tool-native-send/precheck] Invalid recipient address format",
+        error:
+          "[@agentic-ai/vincent-tool-native-send/precheck] Invalid recipient address format",
       });
     }
 
@@ -57,6 +58,18 @@ export const vincentTool = createVincentTool({
         error:
           "[@agentic-ai/vincent-tool-native-send/precheck] Invalid amount format or amount must be greater than 0",
       });
+    }
+
+    // Validate RPC URL if provided
+    if (rpcUrl && typeof rpcUrl === "string") {
+      try {
+        new URL(rpcUrl);
+      } catch {
+        return fail({
+          error:
+            "[@agentic-ai/vincent-tool-native-send/precheck] Invalid RPC URL format",
+        });
+      }
     }
 
     // Additional validation: check if amount is too large
@@ -74,7 +87,10 @@ export const vincentTool = createVincentTool({
       amountValid: true,
     };
 
-    console.log("[@agentic-ai/vincent-tool-native-send/precheck] Success result:", successResult);
+    console.log(
+      "[@agentic-ai/vincent-tool-native-send/precheck] Success result:",
+      successResult
+    );
     const successResponse = succeed(successResult);
     console.log(
       "[NativeSendTool/precheck] Success response:",
@@ -88,22 +104,32 @@ export const vincentTool = createVincentTool({
     { succeed, fail, delegation, policiesContext }
   ) => {
     try {
-      const { to, amount } = toolParams;
+      const { to, amount, rpcUrl } = toolParams;
 
-      console.log("[@agentic-ai/vincent-tool-native-send/execute] Executing Native Send Tool", {
-        to,
-        amount,
-      });
+      console.log(
+        "[@agentic-ai/vincent-tool-native-send/execute] Executing Native Send Tool",
+        {
+          to,
+          amount,
+          rpcUrl,
+        }
+      );
 
-      // Get provider
-      const provider = new ethers.providers.JsonRpcProvider(
-  "https://yellowstone-rpc.litprotocol.com/"
-);
+      // Get provider - use provided RPC URL or default to Yellowstone
+      const finalRpcUrl = rpcUrl || "https://yellowstone-rpc.litprotocol.com/";
+      const provider = new ethers.providers.JsonRpcProvider(finalRpcUrl);
+
+      console.log(
+        "[@agentic-ai/vincent-tool-native-send/execute] Using RPC URL:",
+        finalRpcUrl
+      );
 
       // Get PKP public key from delegation context
       const pkpPublicKey = delegation.delegatorPkpInfo.publicKey;
       if (!pkpPublicKey) {
-        throw new Error("PKP public key not available from delegation context");
+        return fail({
+          error: "PKP public key not available from delegation context",
+        });
       }
 
       // Execute the native send
@@ -114,11 +140,14 @@ export const vincentTool = createVincentTool({
         to,
       });
 
-      console.log("[@agentic-ai/vincent-tool-native-send/execute] Native send successful", {
-        txHash,
-        to,
-        amount,
-      });
+      console.log(
+        "[@agentic-ai/vincent-tool-native-send/execute] Native send successful",
+        {
+          txHash,
+          to,
+          amount,
+        }
+      );
 
       // Manually call policy commit function using the correct pattern
       console.log(
@@ -195,7 +224,10 @@ export const vincentTool = createVincentTool({
         timestamp: Date.now(),
       });
     } catch (error) {
-      console.error("[@agentic-ai/vincent-tool-native-send/execute] Native send failed", error);
+      console.error(
+        "[@agentic-ai/vincent-tool-native-send/execute] Native send failed",
+        error
+      );
 
       return fail({
         error:

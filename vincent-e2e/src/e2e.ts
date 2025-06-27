@@ -21,7 +21,7 @@ import { bundledVincentTool as nativeSendTool } from "../../vincent-packages/too
    */
   const { accounts, chainClient } = await init({
     network: "datil",
-    deploymentStatus: "dev"
+    deploymentStatus: "dev",
   });
 
   /**
@@ -186,22 +186,29 @@ import { bundledVincentTool as nativeSendTool } from "../../vincent-packages/too
    */
   console.log("🧪 Testing send limit policy");
 
-  const TEST_RECIPIENT = accounts.delegatee.ethersWallet.address;
-  const TEST_AMOUNT = "0.00001";
+  const TEST_TOOL_PARAMS = {
+    to: accounts.delegatee.ethersWallet.address,
+    amount: "0.00001",
+    rpcUrl: "https://yellowstone-rpc.litprotocol.com/",
+  };
+
+  const precheck = async () => {
+    return await nativeSendToolClient.precheck(TEST_TOOL_PARAMS, {
+      delegatorPkpEthAddress: agentWalletPkp.ethAddress,
+    });
+  };
+
+  const execute = async () => {
+    return await nativeSendToolClient.execute(TEST_TOOL_PARAMS, {
+      delegatorPkpEthAddress: agentWalletPkp.ethAddress,
+    });
+  };
 
   // ----------------------------------------
   // Test 1: First send should succeed
   // ----------------------------------------
   console.log("(PRECHECK-TEST-1) First send (should succeed)");
-  const nativeSendPrecheckRes1 = await nativeSendToolClient.precheck(
-    {
-      to: TEST_RECIPIENT,
-      amount: TEST_AMOUNT,
-    },
-    {
-      delegatorPkpEthAddress: agentWalletPkp.ethAddress,
-    }
-  );
+  const nativeSendPrecheckRes1 = await precheck();
 
   console.log("(PRECHECK-RES[1]): ", nativeSendPrecheckRes1);
 
@@ -214,15 +221,7 @@ import { bundledVincentTool as nativeSendTool } from "../../vincent-packages/too
   }
 
   console.log("(EXECUTE-TEST-1) First send (should succeed)");
-  const executeRes1 = await nativeSendToolClient.execute(
-    {
-      to: TEST_RECIPIENT,
-      amount: TEST_AMOUNT,
-    },
-    {
-      delegatorPkpEthAddress: agentWalletPkp.ethAddress,
-    }
-  );
+  const executeRes1 = await execute();
 
   console.log("(EXECUTE-RES[1]): ", executeRes1);
 
@@ -238,15 +237,7 @@ import { bundledVincentTool as nativeSendTool } from "../../vincent-packages/too
   // Test 2: Second send should succeed
   // ----------------------------------------
   console.log("(PRECHECK-TEST-2) Second send (should succeed)");
-  const nativeSendPrecheckRes2 = await nativeSendToolClient.precheck(
-    {
-      to: TEST_RECIPIENT,
-      amount: TEST_AMOUNT,
-    },
-    {
-      delegatorPkpEthAddress: agentWalletPkp.ethAddress,
-    }
-  );
+  const nativeSendPrecheckRes2 = await precheck();
 
   console.log("(PRECHECK-RES[2]): ", nativeSendPrecheckRes2);
 
@@ -258,15 +249,7 @@ import { bundledVincentTool as nativeSendTool } from "../../vincent-packages/too
     );
   }
 
-  const executeRes2 = await nativeSendToolClient.execute(
-    {
-      to: TEST_RECIPIENT,
-      amount: TEST_AMOUNT,
-    },
-    {
-      delegatorPkpEthAddress: agentWalletPkp.ethAddress,
-    }
-  );
+  const executeRes2 = await execute();
 
   console.log("(EXECUTE-RES[2]): ", executeRes2);
 
@@ -284,15 +267,7 @@ import { bundledVincentTool as nativeSendTool } from "../../vincent-packages/too
   // Test 3: Third send should fail (limit exceeded)
   // ----------------------------------------
   console.log("(PRECHECK-TEST-3) Third send (should fail - limit exceeded)");
-  const nativeSendPrecheckRes3 = await nativeSendToolClient.precheck(
-    {
-      to: TEST_RECIPIENT,
-      amount: TEST_AMOUNT,
-    },
-    {
-      delegatorPkpEthAddress: agentWalletPkp.ethAddress,
-    }
-  );
+  const nativeSendPrecheckRes3 = await precheck();
 
   console.log("(PRECHECK-RES[3]): ", nativeSendPrecheckRes3);
 
@@ -306,15 +281,7 @@ import { bundledVincentTool as nativeSendTool } from "../../vincent-packages/too
       "🧪 (EXECUTE-TEST-3) Testing if execution is blocked by policy (this is where enforcement happens)..."
     );
 
-    const executeRes3 = await nativeSendToolClient.execute(
-      {
-        to: TEST_RECIPIENT,
-        amount: TEST_AMOUNT,
-      },
-      {
-        delegatorPkpEthAddress: agentWalletPkp.ethAddress,
-      }
-    );
+    const executeRes3 = await execute();
 
     console.log("(EXECUTE-RES[3]): ", executeRes3);
 

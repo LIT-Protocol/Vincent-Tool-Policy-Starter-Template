@@ -8,24 +8,23 @@ The Vincent Scaffold SDK is a development framework for creating **Vincent Tools
 
 ## Common Development Commands
 
-### Core Build Commands
+### Vincent Project Commands
 
 ```bash
-npm run build              # Compile TypeScript to dist/
-npm run validate          # Validate shared config files (esbuild-share-config.js, deno-fetch-shim.js)
-npm run generate:abis     # Generate contract signatures from ABI files (requires .env)
-npm run sync-versions     # Sync template package.json versions with main package
+npm run vincent:build        # Build all tools and policies (erc20-transfer, native-send, send-counter-limit)
+npm run vincent:e2e          # Run native send E2E tests with policy integration
+npm run vincent:e2e:erc20    # Run ERC-20 transfer E2E tests with policy integration
+npm run vincent:e2e:reset    # Delete .e2e-state.json to reset test state
+npm run vincent:hardreset    # Clean all dist/, node_modules/, package-lock.json files
 ```
 
-### Vincent Project Commands (from project root after `vincent-scaffold init`)
+### Smart Contract Commands (Foundry required)
 
 ```bash
-npm run vincent:build     # Build default tool and policy examples
-npm run vincent:e2e       # Run end-to-end tests
-npm run vincent:reset     # Delete .e2e-state.json to reset test state
-npm run vincent:forge:init        # Initialize Foundry contracts (requires Foundry)
-npm run vincent:forge:deploy      # Deploy contracts to Yellowstone chain
-npm run vincent:gen-abi          # Generate ABI signatures from contracts
+npm run vincent:forge:check  # Verify Foundry installation
+npm run vincent:forge:init   # Initialize counter contract and deploy to Yellowstone
+npm run vincent:forge:deploy # Deploy counter contract to Yellowstone chain
+npm run vincent:gen-abi      # Generate ABI signatures from deployed contracts
 ```
 
 ### CLI Commands
@@ -45,6 +44,26 @@ npx @lit-protocol/vincent-scaffold-sdk pkg clean               # Clean dist file
 
 - **Vincent Tools**: Executable actions that perform operations (e.g., sending tokens, calling APIs)
 - **Vincent Policies**: Governance rules that control when/how tools can execute (e.g., rate limiting, access control)
+
+### Current Project Implementation
+
+This project implements a **complete blockchain transaction system** with:
+
+- **`erc20-transfer` tool** - Configurable ERC-20 token transfers with network flexibility
+- **`native-send` tool** - Native ETH transfers on Yellowstone chain
+- **`send-counter-limit` policy** - Rate limiting policy using smart contract state
+- **Comprehensive E2E tests** - Integration testing for both tools with policy enforcement
+
+**Project Configuration** (vincent.json):
+```json
+{
+  "package": {
+    "namespace": "@agentic-ai",
+    "toolPrefix": "vincent-tool-",
+    "policyPrefix": "vincent-policy-"
+  }
+}
+```
 
 ### Lit Actions Environment Constraints
 
@@ -76,19 +95,18 @@ Integrated testing system with:
 
 ### Vincent Configuration
 
-Projects require `vincent.json` configuration:
+This project uses the following `vincent.json` configuration:
 
 ```json
 {
   "package": {
-    "namespace": "@company",
+    "namespace": "@agentic-ai",
     "toolPrefix": "vincent-tool-",
     "policyPrefix": "vincent-policy-"
   },
   "directories": {
     "tools": "./vincent-packages/tools",
-    "policies": "./vincent-packages/policies",
-    "e2e": "./vincent-e2e"
+    "policies": "./vincent-packages/policies"
   }
 }
 ```
@@ -128,11 +146,22 @@ Uses Yellowstone chain (Lit Protocol's test network):
 
 ## Important File Locations
 
-- `src/commands/init.js` - Project initialization logic
-- `src/templates/` - Code generation templates
-- `src/exports/e2e/` - E2E testing utilities and setup
-- `src/exports/la-utils/` - Lit Actions utilities for tools/policies
-- `bin/cli.js` - Main CLI entry point
+### Current Project Structure
+
+- `vincent-packages/tools/erc20-transfer/` - ERC-20 token transfer tool
+- `vincent-packages/tools/native-send/` - Native ETH transfer tool
+- `vincent-packages/policies/send-counter-limit/` - Rate limiting policy
+- `vincent-e2e/src/e2e.ts` - Native send E2E tests
+- `vincent-e2e/src/e2e-erc20.ts` - ERC-20 transfer E2E tests
+- `vincent.json` - Project configuration
+- `.env` - Environment variables for testing and deployment
+
+### Key Implementation Files
+
+- `vincent-packages/tools/erc20-transfer/src/lib/vincent-tool.ts` - ERC-20 tool implementation
+- `vincent-packages/tools/erc20-transfer/src/lib/schemas.ts` - ERC-20 validation schemas
+- `vincent-packages/tools/erc20-transfer/src/lib/helpers/` - ERC-20 helper functions
+- `vincent-packages/policies/send-counter-limit/src/lib/vincent-policy.ts` - Policy implementation
 
 ## Development Environment Setup
 
@@ -158,6 +187,22 @@ The SDK includes a comprehensive E2E testing framework that:
 - Maintains test state across runs
 
 Key test utilities are exported from `@lit-protocol/vincent-scaffold-sdk/e2e`.
+
+### Current Implementation Status
+
+**✅ Working Components:**
+- ERC-20 transfer tool with configurable networks and validation
+- Native send tool with Yellowstone chain integration
+- Send counter limit policy with smart contract state management
+- Comprehensive build system with automatic tool/policy discovery
+
+**🔧 Testing Status:**
+- E2E tests implemented for both tools with policy integration
+- Test state management via `.e2e-state.json`
+- PKP minting and account funding automation
+
+**🛠 Current Build Configuration:**
+The build script automatically discovers and builds all tools and policies in `vincent-packages/` directories using a loop-based approach for scalability.
 
 ## Vincent-Specific Coding Patterns
 
@@ -274,15 +319,17 @@ export const vincentPolicy = createVincentPolicy({
 
 ### Build Script Management
 
-When adding new tools/policies, ALWAYS update root `package.json`:
+The current build system **automatically discovers** all tools and policies:
 
 ```json
 {
   "scripts": {
-    "vincent:build": "dotenv -e .env -- sh -c 'cd vincent-packages/policies/my-policy && npm install && npm run build && cd ../../tools/my-tool && npm install && npm run build'"
+    "vincent:build": "dotenv -e .env -- sh -c 'for dir in vincent-packages/policies/*/; do [ -d \"$dir\" ] && echo \"Building policy: $(basename \"$dir\")\" && cd \"$dir\" && npm install && npm run build && cd - > /dev/null; done && for dir in vincent-packages/tools/*/; do [ -d \"$dir\" ] && echo \"Building tool: $(basename \"$dir\")\" && cd \"$dir\" && npm install && npm run build && cd - > /dev/null; done'"
   }
 }
 ```
+
+**No manual updates required** when adding new tools/policies - the script automatically detects and builds all components in their respective directories.
 
 ### Template Variable Usage
 

@@ -24,7 +24,7 @@ export const vincentTool = createVincentTool({
         console.log("[@agentic-ai/vincent-tool-native-send/precheck] params:", {
             toolParams,
         });
-        const { to, amount } = toolParams;
+        const { to, amount, rpcUrl } = toolParams;
         // Basic validation without using ethers directly
         if (!to || !to.startsWith("0x") || to.length !== 42) {
             return fail({
@@ -36,6 +36,17 @@ export const vincentTool = createVincentTool({
             return fail({
                 error: "[@agentic-ai/vincent-tool-native-send/precheck] Invalid amount format or amount must be greater than 0",
             });
+        }
+        // Validate RPC URL if provided
+        if (rpcUrl && typeof rpcUrl === "string") {
+            try {
+                new URL(rpcUrl);
+            }
+            catch {
+                return fail({
+                    error: "[@agentic-ai/vincent-tool-native-send/precheck] Invalid RPC URL format",
+                });
+            }
         }
         // Additional validation: check if amount is too large
         const amountFloat = parseFloat(amount);
@@ -56,17 +67,22 @@ export const vincentTool = createVincentTool({
     },
     execute: async ({ toolParams }, { succeed, fail, delegation, policiesContext }) => {
         try {
-            const { to, amount } = toolParams;
+            const { to, amount, rpcUrl } = toolParams;
             console.log("[@agentic-ai/vincent-tool-native-send/execute] Executing Native Send Tool", {
                 to,
                 amount,
+                rpcUrl,
             });
-            // Get provider
-            const provider = new ethers.providers.JsonRpcProvider("https://yellowstone-rpc.litprotocol.com/");
+            // Get provider - use provided RPC URL or default to Yellowstone
+            const finalRpcUrl = rpcUrl || "https://yellowstone-rpc.litprotocol.com/";
+            const provider = new ethers.providers.JsonRpcProvider(finalRpcUrl);
+            console.log("[@agentic-ai/vincent-tool-native-send/execute] Using RPC URL:", finalRpcUrl);
             // Get PKP public key from delegation context
             const pkpPublicKey = delegation.delegatorPkpInfo.publicKey;
             if (!pkpPublicKey) {
-                throw new Error("PKP public key not available from delegation context");
+                return fail({
+                    error: "PKP public key not available from delegation context",
+                });
             }
             // Execute the native send
             const txHash = await laUtils.transaction.handler.nativeSend({

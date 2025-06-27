@@ -56,6 +56,26 @@ Create a new tool called `erc20-transfer` by copying and adapting the existing `
 
 ### Implementation Requirements
 
+#### 1. Directory Structure & File Creation Checklist
+
+**CRITICAL**: Create these exact files by copying from `native-send` and modifying:
+
+```
+vincent-packages/tools/erc20-transfer/
+├── package.json                    # ✅ Copy and update package name
+├── tsconfig.json                   # ✅ Copy as-is
+├── README.md                       # ✅ Copy and update description
+├── global.d.ts                     # ✅ Copy as-is
+├── src/
+│   ├── index.ts                    # ✅ Copy as-is (exports generated bundle)
+│   └── lib/
+│       ├── schemas.ts              # ✅ Copy and modify for ERC-20 parameters
+│       ├── vincent-tool.ts         # ✅ Copy and modify for ERC-20 logic
+│       └── helpers/
+│           ├── index.ts            # ✅ CREATE NEW - ERC-20 specific helpers
+│           └── commit-allowed-policies.ts  # ✅ Copy from existing tool
+```
+
 #### 1. Directory Structure
 
 - Create `./vincent-packages/tools/erc20-transfer/` following the exact same structure as `native-send`
@@ -64,9 +84,12 @@ Create a new tool called `erc20-transfer` by copying and adapting the existing `
 
 #### 2. Package Configuration
 
-- **Name**: `@agentic-ai/vincent-tool-erc20-transfer`
-- **Files to update**: `package.json`, `tsconfig.json`, `README.md`
-- Update package name and description for ERC-20 functionality
+- **Package name**: `@agentic-ai/vincent-tool-erc20-transfer` (exact format)
+- **Main files to update**:
+  - `package.json`: Update `name`, `description`, keep all other dependencies identical
+  - `tsconfig.json`: Copy exactly as-is from `native-send`
+  - `README.md`: Update title and description for ERC-20 functionality
+  - `global.d.ts`: Copy exactly as-is from `native-send`
 
 #### 3. Tool Parameters Schema (`src/lib/schemas.ts`)
 
@@ -82,9 +105,23 @@ export const toolParamsSchema = z.object({
   tokenAddress: z
     .string()
     .regex(/^0x[a-fA-F0-9]{40}$/, "Invalid token contract address"),
-  // Network configuration - REQUIRED for tool consumer flexibility
-  rpcEndpoint: z.string().url("Invalid RPC endpoint URL"),
-  chainId: z.number().positive("Invalid chain ID"),
+  tokenDecimals: z
+    .number()
+    .int()
+    .min(0, "Token decimals must be non-negative")
+    .max(18, "Token decimals must not exceed 18")
+    .default(18), // Default to 18 decimals (most common for ERC-20 tokens)
+  rpcUrl: z
+    .string()
+    .url("Invalid RPC URL format")
+    .optional()
+    .default("https://yellowstone-rpc.litprotocol.com/"),
+  chainId: z
+    .number()
+    .int()
+    .positive("Chain ID must be a positive integer")
+    .optional()
+    .default(8453), // Default to Base mainnet
 });
 ```
 
@@ -95,6 +132,45 @@ export const toolParamsSchema = z.object({
 - Maintain the same type export patterns
 
 #### 4. Tool Implementation (`src/lib/vincent-tool.ts`)
+
+**CRITICAL Import Patterns** (copy exactly):
+```typescript
+import {
+  createVincentTool,
+  createVincentToolPolicy,
+  supportedPoliciesForTool,
+} from "@lit-protocol/vincent-tool-sdk";
+import "@lit-protocol/vincent-tool-sdk/internal";
+import { bundledVincentPolicy } from "../../../../policies/send-counter-limit/dist/index.js";
+import { laUtils } from "@lit-protocol/vincent-scaffold-sdk";
+```
+
+**Policy Integration Pattern** (copy exactly):
+```typescript
+const SendLimitPolicy = createVincentToolPolicy({
+  toolParamsSchema,
+  bundledVincentPolicy,
+  toolParameterMappings: {
+    to: "to",
+    amount: "amount",
+  },
+});
+```
+
+**Tool Creation Pattern** (copy and modify):
+```typescript
+export const vincentTool = createVincentTool({
+  packageName: "@agentic-ai/vincent-tool-erc20-transfer" as const,
+  toolParamsSchema,
+  supportedPolicies: supportedPoliciesForTool([SendLimitPolicy]),
+  precheckSuccessSchema,
+  precheckFailSchema,
+  executeSuccessSchema,
+  executeFailSchema,
+  precheck: async ({ toolParams }, { succeed, fail }) => { /* ... */ },
+  execute: async ({ toolParams }, { succeed, fail, delegation, policiesContext }) => { /* ... */ },
+});
+```
 
 - **Precheck function**: Validate recipient address, amount, token contract address, and network parameters
   - **CRITICAL Balance Validations**: Both native and ERC-20 balance checks must be performed in precheck before attempting execution
@@ -117,8 +193,13 @@ export const toolParamsSchema = z.object({
 - **Provider Configuration**: **CRITICAL** - The provider MUST be configurable by the tool consumer (e2e test), NOT hardcoded in the tool
   - **FORBIDDEN**: Do NOT hardcode any RPC endpoints in the tool implementation
   - **FORBIDDEN**: Do NOT use `await laUtils.chain.getYellowstoneProvider()` - this locks the tool to one chain
-  - **REQUIRED**: Tool parameters MUST include `rpcEndpoint` and `chainId` so the e2e test can specify which chain to use
-  - **Pattern**: `const provider = new ethers.providers.JsonRpcProvider(toolParams.rpcEndpoint, toolParams.chainId)`
+  - **REQUIRED**: Tool parameters MUST include `rpcUrl` and `chainId` so the e2e test can specify which chain to use
+  - **Pattern**: `const provider = new ethers.providers.JsonRpcProvider(toolParams.rpcUrl, toolParams.chainId)`
+  - **Execute function pattern**:
+    ```typescript
+    const { to, amount, tokenAddress, tokenDecimals, rpcUrl, chainId } = toolParams;
+    const provider = new ethers.providers.JsonRpcProvider(rpcUrl, chainId);
+    ```
 - **Helper functions**: Create ERC-20 specific helpers in `src/lib/helpers/index.ts` for:
   - **ERC-20 ABI definitions**: Standard ERC-20 ABI including `transfer`, `balanceOf`, `decimals` functions
   - **Balance check utilities**:
@@ -132,7 +213,28 @@ export const toolParamsSchema = z.object({
   - `laUtils.transaction.handler.contractCall()` - Execute contract calls
   - `laUtils.helpers.toEthAddress()` - Address utilities
 - **Policy integration**: Maintain same pattern as `native-send` for `send-counter-limit` policy
+- **Policy commit pattern**: Use the helper function for cleaner code
+  ```typescript
+  const policyCommitResults = await commitAllowedPolicies(
+    policiesContext,
+    "[@agentic-ai/vincent-tool-erc20-transfer/execute]"
+  );
+  ```
 - **Error handling**: Follow existing logging and error patterns
+- **Console logging format**: Use emojis in console logs with emojis placed AFTER the `[ ]` bracket, not before
+  - **Pattern**: `console.log("[@tool-name] ✅ Success message")` (correct)
+  - **NOT**: `console.log("✅ [@tool-name] Success message")` (incorrect)
+  - **Visual indicators**: Use ✅ for success, ❌ for errors, 🔍 for validation, 🚀 for execution, etc.
+- **Configurable parameters principle**: Any value that could vary between different use cases MUST be configurable via tool parameters
+  - **Include in schema**: All configurable values must be defined in `toolParamsSchema` and editable from tests
+  - **No hardcoding**: Avoid hardcoding values that could reasonably be different for different tokens, networks, or use cases
+  - **Examples of what should be configurable**:
+    - Token decimals (varies by token: USDC=6, WETH=18, etc.)
+    - Gas limits and pricing preferences
+    - Slippage tolerance for DEX operations
+    - Network-specific parameters (RPC endpoints, chain IDs)
+    - Token-specific parameters (contract addresses, decimal places)
+  - **Test flexibility**: E2E tests should be able to easily test different scenarios by changing parameter values
 - **Parameter mapping**: Ensure policy receives the same parameter structure (to, amount) for compatibility
 
 #### 5. Required Helper Functions (`src/lib/helpers/index.ts`)
@@ -288,7 +390,7 @@ export const estimateERC20TransferGas = async (
   export const laUtils = {
     transaction: {
       handler: {
-        contractCall,
+        contractCall,  // ← Use this for ERC-20 transfers
         nativeSend,
       },
       primitive: {
@@ -298,11 +400,24 @@ export const estimateERC20TransferGas = async (
       },
     },
     helpers: {
-      toEthAddress,
+      toEthAddress,  // ← Use this for PKP address conversion
     },
   };
   ```
-- Use `laUtils` import: `import { laUtils } from "@lit-protocol/vincent-scaffold-sdk/la-utils"`
+- **CRITICAL**: Use `laUtils` import: `import { laUtils } from "@lit-protocol/vincent-scaffold-sdk";` (NOT `/la-utils`)
+- **Contract call pattern for ERC-20**:
+  ```typescript
+  const txHash = await laUtils.transaction.handler.contractCall({
+    provider,
+    pkpPublicKey,
+    callerAddress,
+    contractAddress: tokenAddress,
+    abi: ERC20_TRANSFER_ABI,
+    functionName: "transfer",
+    args: [to, tokenAmountInWei],
+    chainId: finalChainId,
+  });
+  ```
 - Follow existing code conventions and patterns
 - Maintain exact same schema validation approach
 
@@ -314,12 +429,31 @@ export const estimateERC20TransferGas = async (
 - **Schema consistency**: Follow the established schema patterns from existing tools
 
 **E2E Test Integration Pattern:**
-After building, import the new ERC-20 tool in `vincent-e2e/src/e2e.ts` using relative paths:
+Create a new file `vincent-e2e/src/e2e-erc20.ts` (copy `e2e.ts` structure exactly), then update imports:
 
 ```typescript
 import { vincentPolicyMetadata as sendLimitPolicyMetadata } from "../../vincent-packages/policies/send-counter-limit/dist/index.js";
-import { bundledVincentTool as nativeSendTool } from "../../vincent-packages/tools/native-send/dist/index.js";
 import { bundledVincentTool as erc20TransferTool } from "../../vincent-packages/tools/erc20-transfer/dist/index.js";
+```
+
+**E2E Test Tool Parameters Pattern**:
+```typescript
+const TEST_TOOL_PARAMS = {
+  to: accounts.delegatee.ethersWallet.address, // Transfer to self for testing
+  amount: "0.000001",
+  tokenAddress: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", // Base USDC Contract Address
+  tokenDecimals: 6,
+  rpcUrl: "https://base.llamarpc.com",
+  chainId: 8453,
+};
+```
+
+**E2E Test Client Pattern**:
+```typescript
+const erc20TransferToolClient = getVincentToolClient({
+  bundledVincentTool: erc20TransferTool,
+  ethersSigner: accounts.delegatee.ethersWallet,
+});
 ```
 
 **Key Points:**
@@ -368,6 +502,12 @@ import { bundledVincentTool as erc20TransferTool } from "../../vincent-packages/
 
 ```json
 "vincent:build": "dotenv -e .env -- sh -c 'cd vincent-packages/policies/send-counter-limit && npm install && npm run build && cd ../../tools/native-send && npm install && npm run build && cd ../erc20-transfer && npm install && npm run build'"
+```
+
+**Also add ERC-20 E2E test script:**
+
+```json
+"vincent:e2e-erc20": "node vincent-e2e/src/e2e-erc20.ts"
 ```
 
 **Why this is critical:**

@@ -6,7 +6,7 @@ import {
 } from "@lit-protocol/vincent-scaffold-sdk/e2e";
 
 // Apply log suppression FIRST, before any imports that might trigger logs
-suppressLitLogs(true);
+suppressLitLogs(false);
 
 import { getVincentToolClient } from "@lit-protocol/vincent-app-sdk";
 // Tools and Policies that we will be testing
@@ -173,31 +173,37 @@ import { bundledVincentTool as erc20TransferTool } from "../../vincent-packages/
    * Replace this example with tests relevant to your tools and policies.
    * ====================================
    */
-  console.log("🧪 Testing ERC-20 transfer with send limit policy");
+  console.log(`🧪 Testing ERC-20 transfer with send limit policy`);
+  console.log(
+    "💡 Testing on Base network - each ERC-20 transfer costs approximately 0.0000001 ETH in gas fees"
+  );
 
-  const TEST_RECIPIENT = accounts.delegatee.ethersWallet.address; // Transfer to self for testing
-  const TEST_AMOUNT = "0.000001";
-  const TEST_TOKEN_ADDRESS = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"; // Base USDC Contract Address
-  const TEST_RPC_URL = "https://base.llamarpc.com";
-  const TEST_CHAIN_ID = 8453; // Base testnet chain ID
+  const TEST_TOOL_PARAMS = {
+    to: accounts.delegatee.ethersWallet.address, // Transfer to self for testing
+    amount: "0.000001",
+    tokenAddress: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", // Base USDC Contract Address
+    tokenDecimals: 6,
+    rpcUrl: "https://base.llamarpc.com",
+    chainId: 8453,
+  };
+
+  const precheck = async () => {
+    return await erc20TransferToolClient.precheck(TEST_TOOL_PARAMS, {
+      delegatorPkpEthAddress: agentWalletPkp.ethAddress,
+    });
+  };
+
+  const execute = async () => {
+    return await erc20TransferToolClient.execute(TEST_TOOL_PARAMS, {
+      delegatorPkpEthAddress: agentWalletPkp.ethAddress,
+    });
+  };
 
   // ----------------------------------------
   // Test 1: First ERC-20 transfer should succeed
   // ----------------------------------------
   console.log("(PRECHECK-TEST-1) First ERC-20 transfer (should succeed)");
-  const erc20PrecheckRes1 = await erc20TransferToolClient.precheck(
-    {
-      to: TEST_RECIPIENT,
-      amount: TEST_AMOUNT,
-      tokenAddress: TEST_TOKEN_ADDRESS,
-      rpcUrl: TEST_RPC_URL,
-      chainId: TEST_CHAIN_ID,
-    },
-    {
-      delegatorPkpEthAddress: agentWalletPkp.ethAddress,
-    }
-  );
-
+  const erc20PrecheckRes1 = await precheck();
   console.log("(PRECHECK-RES[1]): ", erc20PrecheckRes1);
 
   if (!erc20PrecheckRes1.success) {
@@ -209,21 +215,10 @@ import { bundledVincentTool as erc20TransferTool } from "../../vincent-packages/
   }
 
   console.log("(EXECUTE-TEST-1) First ERC-20 transfer (should succeed)");
-  const executeRes1 = await erc20TransferToolClient.execute(
-    {
-      to: TEST_RECIPIENT,
-      amount: TEST_AMOUNT,
-      tokenAddress: TEST_TOKEN_ADDRESS,
-      rpcUrl: TEST_RPC_URL,
-      chainId: TEST_CHAIN_ID,
-    },
-    {
-      delegatorPkpEthAddress: agentWalletPkp.ethAddress,
-    }
-  );
+  const executeRes1 = await execute();
 
   console.log("(EXECUTE-RES[1]): ", executeRes1);
-  process.exit();
+
   if (!executeRes1.success) {
     throw new Error(
       `❌ First ERC-20 execute should succeed: ${JSON.stringify(executeRes1)}`
@@ -238,18 +233,7 @@ import { bundledVincentTool as erc20TransferTool } from "../../vincent-packages/
   // Test 2: Second ERC-20 transfer should succeed
   // ----------------------------------------
   console.log("(PRECHECK-TEST-2) Second ERC-20 transfer (should succeed)");
-  const erc20PrecheckRes2 = await erc20TransferToolClient.precheck(
-    {
-      to: TEST_RECIPIENT,
-      amount: TEST_AMOUNT,
-      tokenAddress: TEST_TOKEN_ADDRESS,
-      rpcUrl: TEST_RPC_URL,
-      chainId: TEST_CHAIN_ID,
-    },
-    {
-      delegatorPkpEthAddress: agentWalletPkp.ethAddress,
-    }
-  );
+  const erc20PrecheckRes2 = await precheck();
 
   console.log("(PRECHECK-RES[2]): ", erc20PrecheckRes2);
 
@@ -261,18 +245,7 @@ import { bundledVincentTool as erc20TransferTool } from "../../vincent-packages/
     );
   }
 
-  const executeRes2 = await erc20TransferToolClient.execute(
-    {
-      to: TEST_RECIPIENT,
-      amount: TEST_AMOUNT,
-      tokenAddress: TEST_TOKEN_ADDRESS,
-      rpcUrl: TEST_RPC_URL,
-      chainId: TEST_CHAIN_ID,
-    },
-    {
-      delegatorPkpEthAddress: agentWalletPkp.ethAddress,
-    }
-  );
+  const executeRes2 = await execute();
 
   console.log("(EXECUTE-RES[2]): ", executeRes2);
 
@@ -294,18 +267,7 @@ import { bundledVincentTool as erc20TransferTool } from "../../vincent-packages/
   console.log(
     "(PRECHECK-TEST-3) Third ERC-20 transfer (should fail - limit exceeded)"
   );
-  const erc20PrecheckRes3 = await erc20TransferToolClient.precheck(
-    {
-      to: TEST_RECIPIENT,
-      amount: TEST_AMOUNT,
-      tokenAddress: TEST_TOKEN_ADDRESS,
-      rpcUrl: TEST_RPC_URL,
-      chainId: TEST_CHAIN_ID,
-    },
-    {
-      delegatorPkpEthAddress: agentWalletPkp.ethAddress,
-    }
-  );
+  const erc20PrecheckRes3 = await precheck();
 
   console.log("(PRECHECK-RES[3]): ", erc20PrecheckRes3);
 
@@ -319,18 +281,7 @@ import { bundledVincentTool as erc20TransferTool } from "../../vincent-packages/
       "🧪 (EXECUTE-TEST-3) Testing if ERC-20 execution is blocked by policy (this is where enforcement happens)..."
     );
 
-    const executeRes3 = await erc20TransferToolClient.execute(
-      {
-        to: TEST_RECIPIENT,
-        amount: TEST_AMOUNT,
-        tokenAddress: TEST_TOKEN_ADDRESS,
-        rpcUrl: TEST_RPC_URL,
-        chainId: TEST_CHAIN_ID,
-      },
-      {
-        delegatorPkpEthAddress: agentWalletPkp.ethAddress,
-      }
-    );
+    const executeRes3 = await execute();
 
     console.log("(EXECUTE-RES[3]): ", executeRes3);
 

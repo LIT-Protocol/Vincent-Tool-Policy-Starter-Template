@@ -2,8 +2,9 @@ import { createVincentTool, createVincentToolPolicy, supportedPoliciesForTool, }
 import "@lit-protocol/vincent-tool-sdk/internal";
 import { bundledVincentPolicy } from "../../../../policies/send-counter-limit/dist/index.js";
 import { executeFailSchema, executeSuccessSchema, precheckFailSchema, precheckSuccessSchema, toolParamsSchema, } from "./schemas";
-import { isValidAddress, isValidAmount, ERC20_TRANSFER_ABI, parseTokenAmount } from "./helpers";
 import { laUtils } from "@lit-protocol/vincent-scaffold-sdk";
+import { ERC20_TRANSFER_ABI, isValidAddress, isValidAmount, parseTokenAmount, } from "./helpers";
+import { commitAllowedPolicies } from "./helpers/commit-allowed-policies";
 const SendLimitPolicy = createVincentToolPolicy({
     toolParamsSchema,
     bundledVincentPolicy,
@@ -21,72 +22,68 @@ export const vincentTool = createVincentTool({
     executeSuccessSchema,
     executeFailSchema,
     precheck: async ({ toolParams }, { succeed, fail }) => {
-        console.log("[@agentic-ai/vincent-tool-erc20-transfer/precheck]");
-        console.log("[@agentic-ai/vincent-tool-erc20-transfer/precheck] params:", {
+        console.log("[@agentic-ai/vincent-tool-erc20-transfer/precheck] 🔍 Starting validation");
+        console.log("[@agentic-ai/vincent-tool-erc20-transfer/precheck] 📋 params:", {
             toolParams,
         });
         const { to, amount, tokenAddress, rpcUrl, chainId } = toolParams;
         // Validate recipient address
         if (!isValidAddress(to)) {
             return fail({
-                error: "[@agentic-ai/vincent-tool-erc20-transfer/precheck] Invalid recipient address format",
+                error: "[@agentic-ai/vincent-tool-erc20-transfer/precheck] ❌ Invalid recipient address format",
             });
         }
         // Validate amount
         if (!isValidAmount(amount)) {
             return fail({
-                error: "[@agentic-ai/vincent-tool-erc20-transfer/precheck] Invalid amount format or amount must be greater than 0",
+                error: "[@agentic-ai/vincent-tool-erc20-transfer/precheck] ❌ Invalid amount format or amount must be greater than 0",
             });
         }
         // Validate token contract address
         if (!isValidAddress(tokenAddress)) {
             return fail({
-                error: "[@agentic-ai/vincent-tool-erc20-transfer/precheck] Invalid token contract address format",
+                error: "[@agentic-ai/vincent-tool-erc20-transfer/precheck] ❌ Invalid token contract address format",
             });
         }
         // Validate RPC URL if provided
-        if (rpcUrl && typeof rpcUrl === 'string') {
+        if (rpcUrl && typeof rpcUrl === "string") {
             try {
                 new URL(rpcUrl);
             }
             catch {
                 return fail({
-                    error: "[@agentic-ai/vincent-tool-erc20-transfer/precheck] Invalid RPC URL format",
+                    error: "[@agentic-ai/vincent-tool-erc20-transfer/precheck] ❌ Invalid RPC URL format",
                 });
             }
         }
         // Validate chain ID if provided
-        if (chainId && (typeof chainId !== 'number' || chainId <= 0)) {
+        if (chainId && (typeof chainId !== "number" || chainId <= 0)) {
             return fail({
-                error: "[@agentic-ai/vincent-tool-erc20-transfer/precheck] Invalid chain ID - must be a positive integer",
+                error: "[@agentic-ai/vincent-tool-erc20-transfer/precheck] ❌ Invalid chain ID - must be a positive integer",
             });
         }
         // Additional validation: check if amount is reasonable (prevent very large transfers)
         const amountFloat = parseFloat(amount);
         if (amountFloat > 1000000) {
             return fail({
-                error: "[@agentic-ai/vincent-tool-erc20-transfer/precheck] Amount too large (maximum 1,000,000 tokens per transaction)",
+                error: "[@agentic-ai/vincent-tool-erc20-transfer/precheck] ❌ Amount too large (maximum 1,000,000 tokens per transaction)",
             });
         }
-        // NOTE: Balance checking would require PKP context and provider access
-        // which are not available in precheck hook. Balance validation will be
-        // performed in the execute hook before transaction execution.
-        console.log("[@agentic-ai/vincent-tool-erc20-transfer/precheck] ⚠️ Balance checking will be performed in execute hook");
         // Precheck succeeded
         const successResult = {
             addressValid: true,
             amountValid: true,
             tokenAddressValid: true,
         };
-        console.log("[@agentic-ai/vincent-tool-erc20-transfer/precheck] Success result:", successResult);
+        console.log("[@agentic-ai/vincent-tool-erc20-transfer/precheck] ✅ Success result:", successResult);
         const successResponse = succeed(successResult);
-        console.log("[ERC20TransferTool/precheck] Success response:", JSON.stringify(successResponse, null, 2));
+        console.log("[ERC20TransferTool/precheck] ✅ Success response:", JSON.stringify(successResponse, null, 2));
         return successResponse;
     },
     execute: async ({ toolParams }, { succeed, fail, delegation, policiesContext }) => {
         try {
-            const { to, amount, tokenAddress, rpcUrl, chainId } = toolParams;
-            console.log("[@agentic-ai/vincent-tool-erc20-transfer/execute] Executing ERC-20 Transfer Tool", {
+            const { to, amount, tokenAddress, tokenDecimals, rpcUrl, chainId } = toolParams;
+            console.log("[@agentic-ai/vincent-tool-erc20-transfer/execute] 🚀 Executing ERC-20 Transfer Tool", {
                 to,
                 amount,
                 tokenAddress,
@@ -94,25 +91,73 @@ export const vincentTool = createVincentTool({
                 chainId,
             });
             // Get provider - configurable by user via rpcUrl and chainId parameters
-            const finalRpcUrl = rpcUrl || "https://yellowstone-rpc.litprotocol.com/";
-            const finalChainId = chainId || 8453; // Default to Base mainnet
+            const finalRpcUrl = rpcUrl;
+            const finalChainId = chainId;
             const provider = new ethers.providers.JsonRpcProvider(finalRpcUrl, finalChainId);
-            console.log("[@agentic-ai/vincent-tool-erc20-transfer/execute] Using RPC URL:", finalRpcUrl);
-            console.log("[@agentic-ai/vincent-tool-erc20-transfer/execute] Using Chain ID:", finalChainId);
+            console.log("[@agentic-ai/vincent-tool-erc20-transfer/execute] 🔗 Using RPC URL:", finalRpcUrl);
+            console.log("[@agentic-ai/vincent-tool-erc20-transfer/execute] ⛓️ Using Chain ID:", finalChainId);
             // Get PKP public key from delegation context
             const pkpPublicKey = delegation.delegatorPkpInfo.publicKey;
             if (!pkpPublicKey) {
-                throw new Error("PKP public key not available from delegation context");
+                return fail({
+                    error: "[@agentic-ai/vincent-tool-erc20-transfer/execute] ❌ PKP public key not available from delegation context",
+                });
             }
             // Get the PKP address to use as callerAddress
             const callerAddress = laUtils.helpers.toEthAddress(pkpPublicKey);
-            console.log("[@agentic-ai/vincent-tool-erc20-transfer/execute] PKP wallet address:", callerAddress);
-            // Get token decimals for amount calculation (default to 6 for USDC)
-            let tokenDecimals = 6; // Default for USDC on Base
-            console.log("[@agentic-ai/vincent-tool-erc20-transfer/execute] Using default decimals:", tokenDecimals);
+            console.log("[@agentic-ai/vincent-tool-erc20-transfer/execute] 🔑 PKP wallet address:", callerAddress);
+            // Use provided token decimals for amount calculation
+            console.log("[@agentic-ai/vincent-tool-erc20-transfer/execute] 🔢 Using token decimals:", tokenDecimals);
             // Parse amount to token units using decimals
             const tokenAmountInWei = parseTokenAmount(amount, tokenDecimals);
-            console.log("[@agentic-ai/vincent-tool-erc20-transfer/execute] Transfer amount:", ethers.utils.formatUnits(tokenAmountInWei, tokenDecimals));
+            console.log("[@agentic-ai/vincent-tool-erc20-transfer/execute] 💰 Transfer amount:", ethers.utils.formatUnits(tokenAmountInWei, tokenDecimals));
+            // Check native balance for gas fees
+            console.log("[@agentic-ai/vincent-tool-erc20-transfer/execute] 🔍 Checking native balance for gas...");
+            try {
+                const nativeBalance = await provider.getBalance(callerAddress);
+                console.log("[@agentic-ai/vincent-tool-erc20-transfer/execute] 💰 Native balance (wei):", nativeBalance.toString());
+                console.log("[@agentic-ai/vincent-tool-erc20-transfer/execute] 💰 Native balance (ETH):", ethers.utils.formatEther(nativeBalance));
+                // Estimate gas needed for ERC-20 transfer (approximate)
+                const estimatedGasLimit = 65000; // Conservative estimate for ERC-20 transfer
+                const gasPrice = await provider.getGasPrice();
+                const estimatedGasCost = gasPrice.mul(estimatedGasLimit);
+                console.log("[@agentic-ai/vincent-tool-erc20-transfer/execute] ⛽ Estimated gas cost (wei):", estimatedGasCost.toString());
+                console.log("[@agentic-ai/vincent-tool-erc20-transfer/execute] ⛽ Estimated gas cost (ETH):", ethers.utils.formatEther(estimatedGasCost));
+                if (nativeBalance.lt(estimatedGasCost)) {
+                    return fail({
+                        error: `[@agentic-ai/vincent-tool-erc20-transfer/execute] ❌ Insufficient native balance for gas. Need ${ethers.utils.formatEther(estimatedGasCost)} ETH, but only have ${ethers.utils.formatEther(nativeBalance)} ETH`,
+                    });
+                }
+            }
+            catch (balanceError) {
+                console.error("[@agentic-ai/vincent-tool-erc20-transfer/execute] ❌ Failed to check native balance:", balanceError);
+                return fail({
+                    error: `[@agentic-ai/vincent-tool-erc20-transfer/execute] ❌ Failed to check native balance: ${balanceError instanceof Error
+                        ? balanceError.message
+                        : "Unknown error"}`,
+                });
+            }
+            // Check ERC-20 token balance
+            console.log("[@agentic-ai/vincent-tool-erc20-transfer/execute] 🔍 Checking ERC-20 token balance...");
+            try {
+                const tokenContract = new ethers.Contract(tokenAddress, ERC20_TRANSFER_ABI, provider);
+                const tokenBalance = await tokenContract.balanceOf(callerAddress);
+                console.log("[@agentic-ai/vincent-tool-erc20-transfer/execute] 🪙 Token balance (raw):", tokenBalance.toString());
+                console.log("[@agentic-ai/vincent-tool-erc20-transfer/execute] 🪙 Token balance (formatted):", ethers.utils.formatUnits(tokenBalance, tokenDecimals));
+                if (tokenBalance.lt(tokenAmountInWei)) {
+                    return fail({
+                        error: `[@agentic-ai/vincent-tool-erc20-transfer/execute] ❌ Insufficient token balance. Need ${ethers.utils.formatUnits(tokenAmountInWei, tokenDecimals)} tokens, but only have ${ethers.utils.formatUnits(tokenBalance, tokenDecimals)} tokens`,
+                    });
+                }
+            }
+            catch (tokenBalanceError) {
+                console.error("[@agentic-ai/vincent-tool-erc20-transfer/execute] ❌ Failed to check token balance:", tokenBalanceError);
+                return fail({
+                    error: `[@agentic-ai/vincent-tool-erc20-transfer/execute] ❌ Failed to check token balance: ${tokenBalanceError instanceof Error
+                        ? tokenBalanceError.message
+                        : "Unknown error"}`,
+                });
+            }
             // Prepare contract call data for ERC-20 transfer
             const contractCallData = {
                 provider,
@@ -124,54 +169,26 @@ export const vincentTool = createVincentTool({
                 args: [to, tokenAmountInWei],
                 chainId: finalChainId,
             };
-            console.log("[@agentic-ai/vincent-tool-erc20-transfer/execute] Contract call parameters:", {
+            console.log("[@agentic-ai/vincent-tool-erc20-transfer/execute] 📋 Contract call parameters:", {
                 contractAddress: tokenAddress,
                 functionName: "transfer",
                 args: [to, tokenAmountInWei],
                 callerAddress,
+                chainId: finalChainId,
             });
+            console.log("[@agentic-ai/vincent-tool-erc20-transfer/execute] 🔧 Full contractCallData:", JSON.stringify(contractCallData, null, 2));
+            console.log("[@agentic-ai/vincent-tool-erc20-transfer/execute] 🚀 Attempting contract call...");
             // Execute the ERC-20 transfer using laUtils
             const txHash = await laUtils.transaction.handler.contractCall(contractCallData);
-            console.log("[@agentic-ai/vincent-tool-erc20-transfer/execute] ERC-20 transfer successful", {
+            console.log("[@agentic-ai/vincent-tool-erc20-transfer/execute] ✅ Contract call completed, txHash:", txHash);
+            console.log("[@agentic-ai/vincent-tool-erc20-transfer/execute] ✅ ERC-20 transfer successful", {
                 txHash,
                 to,
                 amount,
                 tokenAddress,
             });
-            // Manually call policy commit function using the correct pattern
-            console.log("[@agentic-ai/vincent-tool-erc20-transfer/execute] Manually calling policy commit function...");
-            try {
-                // Use the correct pattern from the reference code
-                const sendLimitPolicyContext = policiesContext.allowedPolicies["@agentic-ai/vincent-policy-send-counter-limit"];
-                if (sendLimitPolicyContext &&
-                    sendLimitPolicyContext.commit &&
-                    sendLimitPolicyContext.result) {
-                    console.log("[@agentic-ai/vincent-tool-erc20-transfer/execute] ✅ Found send limit policy context, calling commit...");
-                    console.log("[@agentic-ai/vincent-tool-erc20-transfer/execute] ✅ Policy evaluation result:", sendLimitPolicyContext.result);
-                    // Extract the commit parameters from the policy evaluation results
-                    const { currentCount, maxSends, remainingSends, timeWindowSeconds } = sendLimitPolicyContext.result;
-                    const commitParams = {
-                        currentCount,
-                        maxSends,
-                        remainingSends,
-                        timeWindowSeconds,
-                    };
-                    console.log("[@agentic-ai/vincent-tool-erc20-transfer/execute] ✅ Available in sendLimitPolicyContext:", Object.keys(sendLimitPolicyContext));
-                    console.log("[@agentic-ai/vincent-tool-erc20-transfer/execute] ✅ Calling commit with explicit parameters...");
-                    const commitResult = await sendLimitPolicyContext.commit(
-                    // @ts-ignore - TypeScript signature is wrong, framework actually expects parameters
-                    commitParams);
-                    console.log("[@agentic-ai/vincent-tool-erc20-transfer/execute] ✅ Policy commit result:", commitResult);
-                }
-                else {
-                    console.log("[@agentic-ai/vincent-tool-erc20-transfer/execute] ❌ Send limit policy context not found in policiesContext.allowedPolicies");
-                    console.log("[@agentic-ai/vincent-tool-erc20-transfer/execute] ❌ Available policies:", Object.keys(policiesContext.allowedPolicies || {}));
-                }
-            }
-            catch (commitError) {
-                console.error("[@agentic-ai/vincent-tool-erc20-transfer/execute] ❌ Error calling policy commit:", commitError);
-                // Don't fail the transaction if commit fails
-            }
+            const policyCommitResults = await commitAllowedPolicies(policiesContext, "[@agentic-ai/vincent-tool-erc20-transfer/execute]");
+            console.log("[@agentic-ai/vincent-tool-erc20-transfer/execute] ✅ Policy commit results:", policyCommitResults);
             return succeed({
                 txHash,
                 to,
@@ -181,11 +198,11 @@ export const vincentTool = createVincentTool({
             });
         }
         catch (error) {
-            console.error("[@agentic-ai/vincent-tool-erc20-transfer/execute] ERC-20 transfer failed", error);
+            console.error("[@agentic-ai/vincent-tool-erc20-transfer/execute] ❌ ERC-20 transfer failed", error);
             // Provide more specific error messages for common ERC-20 failures
-            let errorMessage = "Unknown error occurred";
+            let errorMessage = "[@agentic-ai/vincent-tool-erc20-transfer/execute] ❌ Unknown error occurred";
             if (error instanceof Error) {
-                errorMessage = error.message;
+                errorMessage = `[@agentic-ai/vincent-tool-erc20-transfer/execute] ❌ ${error.message}`;
             }
             return fail({
                 error: errorMessage,
