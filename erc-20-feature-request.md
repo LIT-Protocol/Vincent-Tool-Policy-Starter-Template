@@ -530,7 +530,7 @@ npm run vincent:e2e
 If you need to reset policy state data (e.g., send counters), you can run:
 
 ```bash
-npm run vincent:reset
+npm run vincent:e2e:reset
 ```
 
 This clears all policy state and should only be used when you specifically want to reset counters or when policy parameter values have been changed.

@@ -39,7 +39,7 @@ import { bundledVincentTool as nativeSendTool } from "../../vincent-packages/too
    * Prepare the IPFS CIDs for the tools and policies
    * NOTE: All arrays below are parallel - each index corresponds to the same tool.
    * ❗️If you change the policy parameter values, you will need to reset the state file.
-   * You can do this by running: npm run vincent:reset
+   * You can do this by running: npm run vincent:e2e:reset
    * ====================================
    */
   const appConfig = createAppConfig(
