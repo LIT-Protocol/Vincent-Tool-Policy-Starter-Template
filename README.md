@@ -4,6 +4,8 @@
 
 A starter template or playground for creating **Vincent Tools** and **Vincent Policies** that execute on Lit Actions - immutable JavaScript programs that run on a decentralized Lit Protocol network.
 
+📺 **[Vincent Tutorial Video](https://www.youtube.com/watch?v=Hkzu8np9Ta8)** - Watch this quick video walkthrough to get started with building tools and policies in Vincent
+
 # Prerequisites
 
 - **ETH Private key**
