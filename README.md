@@ -1,6 +1,6 @@
-# Vincent Framework
+# Vincent Tool Policy Starter Template
 
-A specialized framework for creating **Vincent Tools** and **Vincent Policies** that execute on Lit Actions - a blockchain-based execution environment with strict constraints.
+A starter template or playground for creating **Vincent Tools** and **Vincent Policies** that execute on Lit Actions - immutable JavaScript programs that run on a decentralized Lit Protocol network.
 
 ## Quick Start
 
