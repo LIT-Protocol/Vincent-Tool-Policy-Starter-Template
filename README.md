@@ -10,8 +10,6 @@ A starter template or playground for creating **Vincent Tools** and **Vincent Po
 npx @lit-protocol/vincent-scaffold-sdk
 ```
 
-![ER20 E2E](e2e-erc20.png)
-
 ## Quick Start
 
 ### Prerequisites
@@ -36,8 +34,6 @@ npx @lit-protocol/vincent-scaffold-sdk
    npm install
    ```
 
-````
-
 4. **Build tools and policies**
 
    ```bash
@@ -45,9 +41,12 @@ npx @lit-protocol/vincent-scaffold-sdk
    ```
 
 5. **Run default E2E tests**
+
    ```bash
    npm run vincent:e2e
    ```
+
+   ![ER20 E2E](e2e-erc20.png)
 
 ## Development Workflow
 
@@ -150,4 +149,7 @@ npm run vincent:hardreset         # Reset all state and rebuild
 - [Claude Code Guidelines](./CLAUDE.md) - Project-specific development patterns
 - [ERC-20 Implementation Example](./erc-20-feature-request.md) - Reference for new tool development
 - [Official Vincent Documentation](https://docs.heyvincent.ai/) - Complete Vincent framework documentation
-````
+
+```
+
+```
