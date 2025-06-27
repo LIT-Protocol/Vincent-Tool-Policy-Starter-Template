@@ -46,7 +46,13 @@ npx @lit-protocol/vincent-scaffold-sdk
    npm run vincent:e2e
    ```
 
-   ![ER20 E2E](e2e-erc20.png)
+   ![Native send](e2e-native-send.png)
+
+   ```bash
+   npm run vincent:e2e:erc20
+   ```
+
+   ![ERC20 E2E](e2e-erc20.png)
 
 ## Development Workflow
 
