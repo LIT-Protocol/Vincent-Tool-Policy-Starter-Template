@@ -1,6 +1,6 @@
 # Vincent Tool Policy Starter Template
 
-![Vincent Starter Kit](thumb.png)
+![Vincent Starter Kit](thumbnail.png)
 
 A starter template or playground for creating **Vincent Tools** and **Vincent Policies** that execute on Lit Actions - immutable JavaScript programs that run on a decentralized Lit Protocol network.
 
