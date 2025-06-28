@@ -9,7 +9,7 @@ A starter template or playground for creating **Vincent Tools** and **Vincent Po
 # Prerequisites
 
 - **ETH Private key**
-  
+
   Used to fund all other private keys in tests
 
   - Minimum requirement: 0.13 LIT tokens
@@ -72,13 +72,15 @@ npx @lit-protocol/vincent-scaffold-sdk
 
 ### Making Changes
 
-When you modify tools or policies (like smart contracts), you need to rebuild and potentially reset state:
+When you modify tools or policies, you must rebuild them before running E2E tests again. The build process regenerates the Lit Action code and updates IPFS references.
+
+> ❗️ The E2E tests are isolated per test file and automatically register new app versions, so you can typically just build and test. However, you **may** need to manually reset the E2E test state if something doesn't work as expected.
 
 ```bash
 # Rebuild after changes
 npm run vincent:build
 
-# Reset E2E test state (when policy parameters change)
+# Reset E2E test state
 npm run vincent:e2e:reset
 
 # Complete reset (removes node_modules, dist directories, package-lock files)
