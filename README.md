@@ -98,9 +98,18 @@ Example:
 ```json
 {
   "scripts": {
-    "vincent:e2e:my-tool": "node vincent-e2e/src/e2e-my-tool.ts"
+    "vincent:e2e:my-tool": "dotenv -e .env -- tsx vincent-e2e/src/e2e-my-tool.ts"
   }
 }
+```
+
+To reduce noise in test output, you can suppress debug logs from the dependent SDK by setting the suppression flag to `true`:
+
+```ts
+import { suppressLitLogs } from "@lit-protocol/vincent-scaffold-sdk/e2e";
+
+// Apply log suppression FIRST, before any imports that might trigger logs
+suppressLitLogs(true);
 ```
 
 ## Creating New Tools & Policies
