@@ -1,3 +1,14 @@
+# Deprecation Notice
+
+> [![Deprecated](https://img.shields.io/badge/status-deprecated-red.svg)](https://github.com/LIT-Protocol/vincent-starter-kit)
+>
+> **This Vincent Starter Template has been deprecated**  
+> Please checkout the new [Vincent Starter Kit](https://github.com/LIT-Protocol/vincent-starter-kit) for the latest guide on how to get started developing for Vincent.
+>
+> No further development will happen here, and this repo is no longer being maintained
+
+---
+
 # Vincent Tool Policy Starter Template
 
 ![Vincent Starter Kit](thumbnail.png)
